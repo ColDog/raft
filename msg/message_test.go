@@ -3,6 +3,7 @@ package msg
 import (
 	"testing"
 	"fmt"
+	"gopkg.in/vmihailenco/msgpack.v2"
 )
 
 func TestIntegers(t *testing.T) {
@@ -13,7 +14,51 @@ func TestIntegers(t *testing.T) {
 	}
 }
 
-func BenchmarkBSerialization(b *testing.B) {
+func BenchmarkMsgPackSerialization(b *testing.B) {
+	msg := map[string] interface{} {
+		"name": "COlin",
+		"name3": "COlin3",
+		"list": []string{"a", "b", "c"},
+		"maps": map[string] string {
+			"i": "a",
+			"longers": "asdfasdf",
+		},
+	}
+
+	for i := 0; i < b.N; i++ {
+		_, err := msgpack.Marshal(msg)
+		if err != nil {
+			panic(err)
+		}
+	}
+}
+
+func BenchmarkMsgPackDeserialization(b *testing.B) {
+	msg := map[string] interface{} {
+		"name": "COlin",
+		"name3": "COlin3",
+		"list": []string{"a", "b", "c"},
+		"maps": map[string] string {
+			"i": "a",
+			"longers": "asdfasdf",
+		},
+	}
+
+	data, err := msgpack.Marshal(msg)
+	if err != nil {
+		panic(err)
+	}
+
+	for i := 0; i < b.N; i++ {
+		var out map[string] interface{}
+		err = msgpack.Unmarshal(data, &out)
+		if err != nil {
+			panic(err)
+		}
+	}
+}
+
+func BenchmarkMySerialization(b *testing.B) {
 	m := Message{"hello", map[string] interface{} {
 		"name": "COlin",
 		"name3": "COlin3",
@@ -29,7 +74,7 @@ func BenchmarkBSerialization(b *testing.B) {
 	}
 }
 
-func BenchmarkBDeserialization(b *testing.B) {
+func BenchmarkMyDeserialization(b *testing.B) {
 	m := Message{"hello", map[string] interface{} {
 		"name": "COlin",
 		"name3": "COlin3",
