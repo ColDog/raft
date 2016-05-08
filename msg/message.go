@@ -95,6 +95,15 @@ func ParseMessage(msg []byte) Message {
 				si = si + 4 + l
 			}
 			params[key] = res
+		case byte(8):
+			ary := make([][]byte, 0)
+			for si := 1; si < len(val); {
+				l := ti(val[si:si + 4])
+				item := val[si + 4:si + 4 + l]
+				ary = append(ary, item)
+				si = si + 4 + l
+			}
+			params[key] = ary
 		}
 
 
@@ -170,6 +179,17 @@ func (msg Message) serialize() []byte {
 				stAry.Write(b2)
 			}
 			bval = stAry.Bytes()
+		case [][]byte:
+			// byte x 2 array:
+			// [8][ item len ][ item ] ++
+			//  1      4          ?
+			bAry := new(bytes.Buffer)
+			bAry.Write([]byte{8})
+			for _, item := range asserted {
+				bAry.Write(fi(len(item)))
+				bAry.Write(item)
+			}
+			bval = bAry.Bytes()
 		}
 
 		buff.Write(fi(len(bkey)))

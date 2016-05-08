@@ -36,6 +36,7 @@
       <root url="file://$PROJECT_DIR$/../../../gopkg.in/vmihailenco/msgpack.v2/.git" />
       <root url="file://$PROJECT_DIR$/../../boltdb/bolt/.git" />
       <root url="file://$PROJECT_DIR$/../eb_tx/.idea" />
+      <root url="file://$PROJECT_DIR$/.git" />
     </excluded>
   </library>
 </component>

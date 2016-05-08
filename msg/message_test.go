@@ -13,7 +13,7 @@ func TestIntegers(t *testing.T) {
 	}
 }
 
-func BenchmarkName(b *testing.B) {
+func BenchmarkBSerialization(b *testing.B) {
 	m := Message{"hello", map[string] interface{} {
 		"name": "COlin",
 		"name3": "COlin3",
@@ -26,6 +26,24 @@ func BenchmarkName(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		m.serialize()
+	}
+}
+
+func BenchmarkBDeserialization(b *testing.B) {
+	m := Message{"hello", map[string] interface{} {
+		"name": "COlin",
+		"name3": "COlin3",
+		"list": []string{"a", "b", "c"},
+		"maps": map[string] string {
+			"i": "a",
+			"longers": "asdfasdf",
+		},
+	}, true}
+
+	serialized := m.serialize()
+
+	for i := 0; i < b.N; i++ {
+		ParseMessage(serialized)
 	}
 }
 
