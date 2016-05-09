@@ -67,10 +67,7 @@ func ParseMessage(msg []byte) Message {
 		case byte(4):
 			params[key] = val[1:]
 		case byte(5):
-			var value uint64
-			buf := bytes.NewReader(val[1:])
-			binary.Read(buf, binary.LittleEndian, &value)
-			params[key] = int64(value)
+			params[key] = toInt64(val[1:])
 		case byte(6):
 			ary := make([]string, 0)
 			for si := 1; si < len(val); {
@@ -104,6 +101,12 @@ func ParseMessage(msg []byte) Message {
 				si = si + 4 + l
 			}
 			params[key] = ary
+		case byte(9):
+			ary := make([]int64, 0)
+			for si := 1; si < len(val); {
+				ary = append(ary, toInt64(val[si:si + 8]))
+				si = si + 8
+			}
 		}
 
 
@@ -118,6 +121,10 @@ type Message struct {
 	action 	string
 	Params 	map[string] interface{}
 	failed 	bool
+}
+
+func (msg Message) MarkFailed() {
+	msg.failed = true
 }
 
 func (msg Message) Name() string {
@@ -149,9 +156,7 @@ func (msg Message) serialize() []byte {
 		case []byte:
 			bval = append([]byte{4}, asserted...)
 		case int64:
-			bs := make([]byte, 8)
-			binary.LittleEndian.PutUint64(bs, uint64(asserted))
-			bval = append([]byte{5}, bs...)
+			bval = append([]byte{5}, fromInt64(asserted)...)
 		case []string:
 			// string array:
 			// [6][ item len ][ item ] ++
@@ -190,6 +195,13 @@ func (msg Message) serialize() []byte {
 				bAry.Write(item)
 			}
 			bval = bAry.Bytes()
+		case []int64:
+			bAry := new(bytes.Buffer)
+			bAry.Write([]byte{9})
+			for _, item := range asserted {
+				bAry.Write(fromInt64(item))
+			}
+			bval = bAry.Bytes()
 		}
 
 		buff.Write(fi(len(bkey)))
@@ -201,6 +213,18 @@ func (msg Message) serialize() []byte {
 	return buff.Bytes()
 }
 
+func fromInt64(val int64) []byte {
+	bs := make([]byte, 8)
+	binary.LittleEndian.PutUint64(bs, uint64(val))
+	return bs
+}
+
+func toInt64(data []byte) int64 {
+	var value uint64
+	buf := bytes.NewReader(data)
+	binary.Read(buf, binary.LittleEndian, &value)
+	return int64(value)
+}
 
 func fi(arg int) []byte {
 	bs := make([]byte, 4)

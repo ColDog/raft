@@ -41,6 +41,11 @@ func stream(sconn net.Conn) {
 	req := readFrom(sconn)
 
 	msg := ParseMessage(req)
+
+	if debug {
+		log.Printf("received %v", msg)
+	}
+
 	if handler, ok := handlers[msg.action]; ok {
 		res := handler(msg)
 		sconn.Write(res.serialize())

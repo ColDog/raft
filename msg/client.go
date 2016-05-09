@@ -7,15 +7,17 @@ import (
 	"github.com/hashicorp/yamux"
 )
 
+var debug bool = false
+
 type Client struct {
-	url 	string
+	Url 	string
 	sess 	*yamux.Session
 }
 
 func (client *Client) Send(msg Message) Message {
 	if client.sess.IsClosed() {
 		log.Printf("attemting to reconnect")
-		sess, err := newSession(client.url)
+		sess, err := newSession(client.Url)
 		if err != nil {
 			log.Printf("client closed: %v", err)
 			return NotFound
@@ -24,6 +26,7 @@ func (client *Client) Send(msg Message) Message {
 		}
 
 	}
+
 	stream, err := client.sess.Open()
 	if err != nil {
 		log.Printf("err sending: %v", err)
@@ -36,10 +39,16 @@ func (client *Client) Send(msg Message) Message {
 		return NewErrorMessage("connection", err)
 	}
 
-	log.Printf("sent %v, with %d bytes", msg, n)
+	if debug {
+		log.Printf("sent %v, with %d bytes", msg, n)
+	}
 
 	res := readFrom(stream)
-	return ParseMessage(res)
+	if res != nil && len(res) > 0 {
+		return ParseMessage(res)
+	} else {
+		return NotFound
+	}
 }
 
 func newSession(url string) (*yamux.Session, error) {
@@ -63,5 +72,5 @@ func NewClient(url string) (*Client, error) {
 		return &Client{}, err
 	}
 
-	return &Client{url: url, sess: sess}, nil
+	return &Client{Url: url, sess: sess}, nil
 }
