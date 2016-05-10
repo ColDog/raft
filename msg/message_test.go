@@ -97,6 +97,7 @@ func TestSerializer(t *testing.T) {
 		"name": "COlin",
 		"name3": "COlin3",
 		"list": []string{"a", "b", "c"},
+		"intList": []int64{1, 2, 3, 4},
 		"maps": map[string] string {
 			"i": "a",
 			"longers": "asdfasdf",
@@ -120,6 +121,12 @@ func TestSerializer(t *testing.T) {
 	for idx, item := range m.Params["list"].([]string) {
 		if item != m2.Params["list"].([]string)[idx] {
 			t.Fail()
+		}
+	}
+
+	for idx, item := range m.Params["intList"].([]int64) {
+		if item != m2.Params["intList"].([]int64)[idx] {
+			t.Fatal(m2.Params["intList"].([]int64))
 		}
 	}
 

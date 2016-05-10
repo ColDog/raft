@@ -15,9 +15,9 @@ import (
 // CANDIDATE = 0
 
 const (
-	LEADER_WAIT_TIME time.Duration = 1000 * time.Millisecond
-	FOLLOWER_TIMEOUT time.Duration = 2500 * time.Millisecond
-	CANDIDATE_TIMEOUT time.Duration = 1000 * time.Millisecond
+	LEADER_WAIT_TIME time.Duration = 5000 * time.Millisecond
+	FOLLOWER_TIMEOUT time.Duration = 10000 * time.Millisecond
+	CANDIDATE_TIMEOUT time.Duration = 5000 * time.Millisecond
 )
 
 func NewRaft(id string, address string, server string) *Raft {
@@ -105,11 +105,11 @@ func (raft *Raft) IsFollower() bool {
 
 func (raft *Raft) RunAsCandidate() {
 	votes := make(map[string] bool)
-	votes[raft.Cluster.Self] = true
+	//votes[raft.Cluster.Self] = true
 
 
 	for {
-		log.Println("selecting as candidate")
+		// log.Println("selecting as candidate")
 		hasVoted := false
 		select {
 		case <- raft.quit:
@@ -122,14 +122,12 @@ func (raft *Raft) RunAsCandidate() {
 			log.Printf("not leader, will not bring up node")
 
 		case req := <- raft.appChan:
-			log.Printf("[candidate] received append entries %v", req.Msg.Params)
 			raft.handleRaftAppend(req)
 			raft.ToFollower(req.Msg.Params["from"].(string), req.Msg.Params["term"].(int64))
 			req.Respond(raft.AckMessage())
 			return
 
 		case req := <- raft.vteChan:
-			log.Printf("received vote %v", req.Msg.Params)
 			if asserted, ok := req.Msg.Params["vote"].(string); ok {
 				if asserted == raft.Cluster.Self {
 					votes[asserted] = true
@@ -162,7 +160,7 @@ func (raft *Raft) RunAsCandidate() {
 
 func (raft *Raft) RunAsFollower() {
 	for {
-		log.Println("selecting as follower")
+		// log.Println("selecting as follower")
 
 		select {
 		case <- raft.quit:
@@ -180,12 +178,12 @@ func (raft *Raft) RunAsFollower() {
 			return
 
 		case req := <- raft.appChan:
-			log.Println("handling append entries")
 			raft.handleRaftAppend(req)
 			req.Respond(raft.AckMessage())
 
 		// if we don't hear from the leader for a while restart.
 		case <-time.After(FOLLOWER_TIMEOUT):
+			log.Println("follower timed out")
 			raft.ToCandidate()
 			return
 
@@ -200,8 +198,6 @@ func (raft *Raft) RunAsLeader() {
 
 	// Accrue messages for 150 milliseconds before sending the append entries.
 	for {
-		log.Println("selecting as leader")
-
 		select {
 		case <- raft.quit:
 			return
@@ -222,7 +218,6 @@ func (raft *Raft) RunAsLeader() {
 			}
 
 		case <- time.After(LEADER_WAIT_TIME):
-			log.Println("pushing append entries")
 			raft.handlePushAppend(entries)
 			entries = make([]store.Entry, 0)
 		}
@@ -234,6 +229,7 @@ func (raft *Raft) AddEntry(entry []byte) error {
 		return errors.New("NOT_LEADER")
 	}
 
+	log.Println("pushing entry")
 	e := store.NewEntry(entry)
 	raft.reqChan <- e
 
@@ -248,6 +244,8 @@ func (raft *Raft) AddEntry(entry []byte) error {
 }
 
 func (raft *Raft) handlePushAppend(entries []store.Entry) {
+	log.Printf("pushing append %v", entries)
+
 	// append locally
 	for _, entry := range entries {
 		entry.Append()
@@ -292,8 +290,12 @@ func (raft *Raft) handlePushAppend(entries []store.Entry) {
 
 
 func (raft *Raft) handleRaftAppend(req *RequestHandler) {
+	log.Printf("handling append %v", req.Msg)
+	log.Printf("message %v %v", req.Msg.Name(), req.Msg.Name() == "raft.append")
+
 	t := req.Msg.Params["term"].(int64)
 	if raft.Term > t {
+		log.Printf("greater term exception %v %v", raft.Term, t)
 		raft.ErrMessage("GREATER_TERM_EXCEPTION")
 		return
 	} else if raft.Term < t {
@@ -307,19 +309,21 @@ func (raft *Raft) handleRaftAppend(req *RequestHandler) {
 		return
 	}
 
+
 	if req.Msg.Name() == "raft.append" {
 		entries := req.Msg.Params["entries"].([][]byte)
 		for idx, id := range req.Msg.Params["ids"].([]int64) {
 			entry := entries[idx]
+			log.Println("appending %v", id)
 			store.AppendEntry(id, entry)
 		}
 	}
 
 	if req.Msg.Name() == "raft.commit" {
-		if req.Msg.Name() == "raft.commit" {
-			for _, id := range req.Msg.Params["ids"].([]int64) {
-				store.CommitEntry(id)
-			}
+		log.Println("inside commit")
+		for _, id := range req.Msg.Params["ids"].([]int64) {
+			log.Println("commiting %v", id)
+			store.CommitEntry(id)
 		}
 	}
 
@@ -341,6 +345,10 @@ func (raft *Raft) BringUpNode(id string) {
 		entries := make([]store.Entry, 0)
 		for i := 0; i < 5; i++ {
 			key, val := store.Next(last)
+			if key == 0 {
+				break
+			}
+
 			entries = append(entries, store.Entry{key, val})
 			last = key
 		}
@@ -360,7 +368,6 @@ func (raft *Raft) BringUpNode(id string) {
 func (raft *Raft) Run() {
 	for {
 		log.Printf("running %v", raft.State)
-		//raft.refresh()
 
 		switch raft.State {
 		case 0:
@@ -373,9 +380,3 @@ func (raft *Raft) Run() {
 	}
 }
 
-func (raft *Raft) refresh() {
-	raft.reqChan = make(chan store.Entry)
-	raft.resChan = make(chan AppendResponse)
-	raft.appChan = make(chan *RequestHandler)
-	raft.vteChan = make(chan *RequestHandler)
-}

@@ -3,6 +3,7 @@ package raft
 import (
 	"github.com/coldog/raft/msg"
 	"github.com/coldog/raft/store"
+	"log"
 )
 
 
@@ -57,6 +58,8 @@ func (raft *Raft) AppendEntriesMessage(entries []store.Entry) msg.Message {
 
 	m.Params["ids"] = ids
 	m.Params["entries"] = es
+
+	log.Printf("append entries message %v", m.Params)
 	return m
 }
 

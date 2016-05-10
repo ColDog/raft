@@ -107,6 +107,7 @@ func ParseMessage(msg []byte) Message {
 				ary = append(ary, toInt64(val[si:si + 8]))
 				si = si + 8
 			}
+			params[key] = ary
 		}
 
 
