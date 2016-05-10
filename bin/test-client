@@ -1,0 +1,4 @@
+#!/bin/bash
+
+
+curl "http://localhost:800${1}/${2}?${3}"

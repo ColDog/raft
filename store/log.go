@@ -2,10 +2,10 @@ package store
 
 import (
 	"github.com/boltdb/bolt"
+
 	"log"
 	"bytes"
 	"encoding/binary"
-	"fmt"
 	"time"
 	"math/rand"
 )
@@ -25,10 +25,10 @@ func NextKey() int64 {
 	}
 }
 
-func Next(last int64) (int64, []byte) {
-	last += 1
+func Next(last int64) (int64, int, []byte) {
 	var rkey int64
 	var rval []byte
+	var rstat int
 
 	key := fromInt64(last)
 
@@ -39,33 +39,28 @@ func Next(last int64) (int64, []byte) {
 
 		for k, v := c.Seek(key); k != nil; k, v = c.Next() {
 			rkey = toInt64(k)
-			copy(rval, v)
+			rval = v
+
+			t := tx.Bucket(comBucket).Get(k)
+
+			if len(t) >= 1 {
+				rstat = int(t[0])
+			}
+
 			return nil
 		}
 
 		return nil
 	})
 
-	return rkey, rval
+	return rkey, rstat, rval
 }
 
-func AppendEntry(id int64, value []byte)  {
+func AppendEntry(id int64, value []byte) error {
 	LastKey = id
 	Size += 1
-	Append(fromInt64(id), value)
-}
+	key := fromInt64(id)
 
-func CommitEntry(id int64)  {
-	LastKey = id
-	Commit(fromInt64(id))
-}
-
-func AbortEntry(id int64)  {
-	LastKey = id
-	Abort(fromInt64(id))
-}
-
-func Append(key []byte, value []byte) error {
 	err := db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(logBucket)
 		err := b.Put(key, value)
@@ -75,42 +70,25 @@ func Append(key []byte, value []byte) error {
 	return err
 }
 
-func Commit(key []byte) error  {
+func CommitEntry(id int64) error {
+	return SetEntryStatus(id, 1)
+}
+
+func AbortEntry(id int64) error {
+	return SetEntryStatus(id, 2)
+}
+
+func SetEntryStatus(id int64, status int) error {
+	key := fromInt64(id)
 	err := db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket(comBucket)
-		err := b.Put(key, []byte{1})
+		ts := fromInt64(time.Now().UnixNano())
+		err := tx.Bucket(comBucket).Put(key, append([]byte{byte(status)}, ts...))
 		return err
 	})
 
 	return err
 }
 
-func Abort(key []byte) error  {
-	err := db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket(comBucket)
-		err := b.Put(key, []byte{0})
-		return err
-	})
-
-	return err
-}
-
-func Read(key []byte) ([]byte, bool) {
-	committed := false
-	var value []byte
-
-	db.View(func(tx *bolt.Tx) error {
-		commit := tx.Bucket(comBucket).Get(key)
-		if commit != nil && len(commit) >= 1 && commit[0] == 1 {
-			committed = true
-		}
-
-		copy(value, tx.Bucket(logBucket).Get(key))
-		return nil
-	})
-
-	return value, committed
-}
 
 func OpenDb(name string) {
 	var err error
@@ -122,17 +100,6 @@ func OpenDb(name string) {
 	db.Update(func(tx *bolt.Tx) error {
 		tx.CreateBucketIfNotExists(logBucket)
 		tx.CreateBucketIfNotExists(comBucket)
-		return nil
-	})
-
-	db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket(logBucket)
-
-		b.ForEach(func(k, v []byte) error {
-			fmt.Printf("key=%s, value=%s\n", k, v)
-			Size += 1
-			return nil
-		})
 		return nil
 	})
 }

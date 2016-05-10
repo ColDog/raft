@@ -105,11 +105,8 @@ func (raft *Raft) IsFollower() bool {
 
 func (raft *Raft) RunAsCandidate() {
 	votes := make(map[string] bool)
-	//votes[raft.Cluster.Self] = true
-
 
 	for {
-		// log.Println("selecting as candidate")
 		hasVoted := false
 		select {
 		case <- raft.quit:
@@ -160,8 +157,6 @@ func (raft *Raft) RunAsCandidate() {
 
 func (raft *Raft) RunAsFollower() {
 	for {
-		// log.Println("selecting as follower")
-
 		select {
 		case <- raft.quit:
 			return
@@ -291,7 +286,6 @@ func (raft *Raft) handlePushAppend(entries []store.Entry) {
 
 func (raft *Raft) handleRaftAppend(req *RequestHandler) {
 	log.Printf("handling append %v", req.Msg)
-	log.Printf("message %v %v", req.Msg.Name(), req.Msg.Name() == "raft.append")
 
 	t := req.Msg.Params["term"].(int64)
 	if raft.Term > t {
@@ -314,7 +308,7 @@ func (raft *Raft) handleRaftAppend(req *RequestHandler) {
 		entries := req.Msg.Params["entries"].([][]byte)
 		for idx, id := range req.Msg.Params["ids"].([]int64) {
 			entry := entries[idx]
-			log.Println("appending %v", id)
+			log.Printf("appending %v", id)
 			store.AppendEntry(id, entry)
 		}
 	}
@@ -322,13 +316,14 @@ func (raft *Raft) handleRaftAppend(req *RequestHandler) {
 	if req.Msg.Name() == "raft.commit" {
 		log.Println("inside commit")
 		for _, id := range req.Msg.Params["ids"].([]int64) {
-			log.Println("commiting %v", id)
+			log.Printf("commiting %v", id)
 			store.CommitEntry(id)
 		}
 	}
 
 	if req.Msg.Name() == "raft.abort" {
 		for _, id := range req.Msg.Params["ids"].([]int64) {
+			log.Printf("aborting %v", id)
 			store.AbortEntry(id)
 		}
 	}
@@ -344,12 +339,14 @@ func (raft *Raft) BringUpNode(id string) {
 	for {
 		entries := make([]store.Entry, 0)
 		for i := 0; i < 5; i++ {
-			key, val := store.Next(last)
+			key, status, val := store.Next(last)
 			if key == 0 {
 				break
 			}
 
-			entries = append(entries, store.Entry{key, val})
+			if status == "COMMITTED" {
+				entries = append(entries, store.Entry{key, val})
+			}
 			last = key
 		}
 

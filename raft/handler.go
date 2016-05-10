@@ -28,9 +28,14 @@ func (raft *Raft) handle(m msg.Message) msg.Message {
 			return res
 		}
 	case <-time.After(50 * time.Millisecond):
-		log.Printf("no channel available for append entries %v", raft.appChan)
-		select {case raft.quit <- true:}
-		return msg.ServerError
+		select {
+		case raft.quit <- true:
+			log.Println("no channel available for append entries quitting")
+			return msg.ServerError
+		default:
+			log.Println("no channel available for append entries failed to quit")
+			return msg.ServerError
+		}
 	}
 }
 
