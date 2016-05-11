@@ -7,30 +7,16 @@ import (
 	"bytes"
 	"encoding/binary"
 	"time"
-	"math/rand"
 )
 
 var db *bolt.DB
 var logBucket []byte = []byte("logs")
 var comBucket []byte = []byte("commits")
-var LastKey int64 = 0
 var Size int64 = 0
 
-func NextKey() int64 {
-	t := time.Now().UnixNano()
-	if t > LastKey {
-		return t
-	} else {
-		return LastKey + rand.Int63n(10000)
-	}
-}
-
-func Next(last int64) (int64, int, []byte) {
-	var rkey int64
-	var rval []byte
-	var rstat int
-
-	key := fromInt64(last)
+func Next(key []byte) (Entry, bool) {
+	ok := false
+	var entry Entry
 
 	db.View(func(tx *bolt.Tx) error {
 		// Assume bucket exists and has keys
@@ -38,13 +24,13 @@ func Next(last int64) (int64, int, []byte) {
 		c := b.Cursor()
 
 		for k, v := c.Seek(key); k != nil; k, v = c.Next() {
-			rkey = toInt64(k)
-			rval = v
+			entry = Entry{k, v, 0}
+			ok = true
 
 			t := tx.Bucket(comBucket).Get(k)
 
 			if len(t) >= 1 {
-				rstat = int(t[0])
+				entry.Status = int(t[0])
 			}
 
 			return nil
@@ -53,36 +39,42 @@ func Next(last int64) (int64, int, []byte) {
 		return nil
 	})
 
-	return rkey, rstat, rval
+	return entry, ok
 }
 
-func AppendEntry(id int64, value []byte) error {
-	LastKey = id
+func AppendEntry(key []byte, value []byte) error {
+	return AppendEntryWithStatus(key, value, 0)
+}
+
+func CommitEntry(key []byte) error {
+	return SetEntryStatus(key, 1)
+}
+
+func AbortEntry(key []byte) error {
+	return SetEntryStatus(key, 2)
+}
+
+func AppendEntryWithStatus(key []byte, value []byte, status int) error {
 	Size += 1
-	key := fromInt64(id)
 
 	err := db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket(logBucket)
-		err := b.Put(key, value)
+		err := tx.Bucket(logBucket).Put(key, value)
+		tx.Bucket(comBucket).Put(
+			key,
+			append([]byte{byte(status)}, fromInt64(time.Now().UnixNano())...),
+		)
 		return err
 	})
 
 	return err
 }
 
-func CommitEntry(id int64) error {
-	return SetEntryStatus(id, 1)
-}
-
-func AbortEntry(id int64) error {
-	return SetEntryStatus(id, 2)
-}
-
-func SetEntryStatus(id int64, status int) error {
-	key := fromInt64(id)
+func SetEntryStatus(key []byte, status int) error {
 	err := db.Update(func(tx *bolt.Tx) error {
-		ts := fromInt64(time.Now().UnixNano())
-		err := tx.Bucket(comBucket).Put(key, append([]byte{byte(status)}, ts...))
+		err := tx.Bucket(comBucket).Put(
+			key,
+			append([]byte{byte(status)}, fromInt64(time.Now().UnixNano())...),
+		)
 		return err
 	})
 
@@ -102,6 +94,17 @@ func OpenDb(name string) {
 		tx.CreateBucketIfNotExists(comBucket)
 		return nil
 	})
+
+	db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket(logBucket)
+
+		b.ForEach(func(k, v []byte) error {
+			Size += 1
+			lastKey = k
+			return nil
+		})
+		return nil
+	})
 }
 
 func fromInt64(val int64) []byte {
@@ -116,17 +119,3 @@ func toInt64(data []byte) int64 {
 	binary.Read(buf, binary.LittleEndian, &value)
 	return int64(value)
 }
-
-func fi(arg int) []byte {
-	bs := make([]byte, 4)
-	binary.LittleEndian.PutUint32(bs, uint32(arg))
-	return bs
-}
-
-func ti(data []byte) int {
-	var value uint32
-	buf := bytes.NewReader(data)
-	binary.Read(buf, binary.LittleEndian, &value)
-	return int(value)
-}
-

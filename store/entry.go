@@ -1,23 +1,28 @@
 package store
 
 type Entry struct {
-	Id 	int64
+	Key 	[]byte
 	Entry	[]byte
+	Status 	int
 }
 
 func (entry Entry) Commit() {
-	CommitEntry(entry.Id)
+	CommitEntry(entry.Key)
 }
 
 func (entry Entry) Append() {
-	AppendEntry(entry.Id, entry.Entry)
+	if entry.Status > 0 {
+		AppendEntryWithStatus(entry.Key, entry.Entry, entry.Status)
+	} else {
+		AppendEntry(entry.Key, entry.Entry)
+	}
 }
 
 func (entry Entry) Abort() {
-	AbortEntry(entry.Id)
+	AbortEntry(entry.Key)
 }
 
 func NewEntry(entry []byte) Entry {
-	return Entry{NextKey(), entry}
+	return Entry{NextKey(), entry, 0}
 }
 

@@ -339,14 +339,12 @@ func (raft *Raft) BringUpNode(id string) {
 	for {
 		entries := make([]store.Entry, 0)
 		for i := 0; i < 5; i++ {
-			key, status, val := store.Next(last)
+			entry := store.Next(last)
 			if key == 0 {
 				break
 			}
 
-			if status == "COMMITTED" {
-				entries = append(entries, store.Entry{key, val})
-			}
+			entries = append(entries, store.Entry{key, val})
 			last = key
 		}
 

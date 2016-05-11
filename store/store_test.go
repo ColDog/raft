@@ -9,7 +9,7 @@ import (
 
 func TestAdding(t *testing.T) {
 
-	id := int64(100)
+	id := []byte{100}
 
 	AppendEntry(id, []byte("things"))
 
@@ -21,7 +21,7 @@ func TestAdding(t *testing.T) {
 	printFrom(logBucket)
 	printFrom(comBucket)
 
-	id += 100
+	id = []byte{200}
 	AppendEntry(id, []byte("things"))
 
 	err = AbortEntry(id)
@@ -29,17 +29,33 @@ func TestAdding(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	key, status, val := Next(101)
-	println(key, status, string(val))
-	if status != 2 {
-		t.Fatal(status)
+	e, _ := Next([]byte{200})
+	fmt.Printf("%v\n", e)
+	if e.Status != 2 {
+		t.Fatal(e)
 	}
 
 	printFrom(logBucket)
 	printFrom(comBucket)
 
+
+	ee, ok := Next([]byte{10})
+	fmt.Printf("ee: %v, ok: %v\n", ee, ok)
 }
 
+func TestIncrementBytes(t *testing.T) {
+	k0 := []byte{100, 128}
+	fmt.Printf("incremented: %v\n", increment(k0))
+}
+
+func TestKeyGen(t *testing.T) {
+	StartKeyGenerator()
+
+	go fmt.Printf("key: %v %v\n", NextKey(), LastKey())
+	go fmt.Printf("key: %v %v\n", NextKey(), LastKey())
+	fmt.Printf("key: %v %v\n", NextKey(), LastKey())
+	fmt.Printf("key: %v %v\n", NextKey(), LastKey())
+}
 
 func printFrom(bucket []byte) {
 	fmt.Printf("\nprinting from %s\n", bucket)
