@@ -27,6 +27,7 @@ func AbortEntry(key []byte) error {
 }
 
 func AppendEntryWithStatus(key []byte, value []byte, status int) error {
+	Size += 1
 	err := db.Update(func(tx *bolt.Tx) error {
 		err := tx.Bucket(logBucket).Put(key, value)
 		tx.Bucket(comBucket).Put(
