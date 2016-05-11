@@ -231,7 +231,7 @@ func (raft *Raft) AddEntry(entry []byte) error {
 	for {
 		select {
 		case res := <- raft.resChan:
-			if res.Id == e.Id {
+			if res.Id == e.KeyAsInt() {
 				return res.Err
 			}
 		}
@@ -277,7 +277,7 @@ func (raft *Raft) handlePushAppend(entries []store.Entry) {
 	// notify all
 	for _, entry := range entries {
 		select {
-		case raft.resChan <- AppendResponse{entry.Id, err}:
+		case raft.resChan <- AppendResponse{entry.KeyAsInt(), err}:
 		default:
 		}
 	}
@@ -306,24 +306,22 @@ func (raft *Raft) handleRaftAppend(req *RequestHandler) {
 
 	if req.Msg.Name() == "raft.append" {
 		entries := req.Msg.Params["entries"].([][]byte)
-		for idx, id := range req.Msg.Params["ids"].([]int64) {
+		for idx, id := range req.Msg.Params["ids"].([][]byte) {
 			entry := entries[idx]
-			log.Printf("appending %v", id)
 			store.AppendEntry(id, entry)
 		}
 	}
 
 	if req.Msg.Name() == "raft.commit" {
 		log.Println("inside commit")
-		for _, id := range req.Msg.Params["ids"].([]int64) {
-			log.Printf("commiting %v", id)
+		for _, id := range req.Msg.Params["ids"].([][]byte) {
 			store.CommitEntry(id)
 		}
 	}
 
 	if req.Msg.Name() == "raft.abort" {
-		for _, id := range req.Msg.Params["ids"].([]int64) {
-			log.Printf("aborting %v", id)
+		log.Printf("aborting %v", req.Msg.Params["ids"])
+		for _, id := range req.Msg.Params["ids"].([][]byte) {
 			store.AbortEntry(id)
 		}
 	}
@@ -334,20 +332,12 @@ func (raft *Raft) handleRaftAppend(req *RequestHandler) {
 func (raft *Raft) BringUpNode(id string) {
 	log.Printf("bringing up node %v", id)
 	nodeInfo := raft.Cluster.Send(id, raft.PingMessage()).Params
-	last := nodeInfo["last_id"].(int64)
+	last := nodeInfo["last_id"].([]byte)
+
+	iterator := store.NewIterator(last)
 
 	for {
-		entries := make([]store.Entry, 0)
-		for i := 0; i < 5; i++ {
-			entry := store.Next(last)
-			if key == 0 {
-				break
-			}
-
-			entries = append(entries, store.Entry{key, val})
-			last = key
-		}
-
+		entries := iterator.NextCount(5)
 		if len(entries) == 0 {
 			break
 		}

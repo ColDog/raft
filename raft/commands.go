@@ -49,9 +49,9 @@ func (raft *Raft) RequestVoteMessage() msg.Message {
 func (raft *Raft) AppendEntriesMessage(entries []store.Entry) msg.Message {
 	m := raft.BaseMessage("raft.append")
 	es := make([][]byte, 0)
-	ids := make([]int64, 0)
+	ids := make([][]byte, 0)
 	for _, entry := range entries {
-		ids = append(ids, entry.Id)
+		ids = append(ids, entry.Key)
 		es = append(es, entry.Entry)
 	}
 
@@ -63,9 +63,9 @@ func (raft *Raft) AppendEntriesMessage(entries []store.Entry) msg.Message {
 func (raft *Raft) CommitMessage(entries []store.Entry) msg.Message {
 	m := raft.BaseMessage("raft.commit")
 
-	ids := make([]int64, 0)
+	ids := make([][]byte, 0)
 	for _, entry := range entries {
-		ids = append(ids, entry.Id)
+		ids = append(ids, entry.Key)
 	}
 
 	m.Params["ids"] = ids
@@ -75,9 +75,9 @@ func (raft *Raft) CommitMessage(entries []store.Entry) msg.Message {
 func (raft *Raft) AbortMessage(entries []store.Entry) msg.Message {
 	m := raft.BaseMessage("raft.abort")
 
-	ids := make([]int64, 0)
+	ids := make([][]byte, 0)
 	for _, entry := range entries {
-		ids = append(ids, entry.Id)
+		ids = append(ids, entry.Key)
 	}
 
 	m.Params["ids"] = ids

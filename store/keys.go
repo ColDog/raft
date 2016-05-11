@@ -26,7 +26,7 @@ func increment(key []byte) []byte {
 	}
 }
 
-func StartKeyGenerator()  {
+func startKeyGenerator()  {
 	go func() {
 		for {
 			f := <- nextChan
@@ -34,4 +34,12 @@ func StartKeyGenerator()  {
 			f.res <- lastKey
 		}
 	}()
+}
+
+func keyToInt64(key []byte) int64 {
+	val := int64(0)
+	for _, b := range key {
+		val += int64(b)
+	}
+	return val
 }

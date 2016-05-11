@@ -29,7 +29,9 @@ func TestAdding(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	e, _ := Next([]byte{200})
+	it := NewIterator([]byte{199})
+
+	e, _ := it.Next()
 	fmt.Printf("%v\n", e)
 	if e.Status != 2 {
 		t.Fatal(e)
@@ -38,19 +40,12 @@ func TestAdding(t *testing.T) {
 	printFrom(logBucket)
 	printFrom(comBucket)
 
-
-	ee, ok := Next([]byte{10})
+	it = NewIterator([]byte{10})
+	ee, ok := it.Next()
 	fmt.Printf("ee: %v, ok: %v\n", ee, ok)
 }
 
-func TestIncrementBytes(t *testing.T) {
-	k0 := []byte{100, 128}
-	fmt.Printf("incremented: %v\n", increment(k0))
-}
-
 func TestKeyGen(t *testing.T) {
-	StartKeyGenerator()
-
 	go fmt.Printf("key: %v %v\n", NextKey(), LastKey())
 	go fmt.Printf("key: %v %v\n", NextKey(), LastKey())
 	fmt.Printf("key: %v %v\n", NextKey(), LastKey())

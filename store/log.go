@@ -14,34 +14,6 @@ var logBucket []byte = []byte("logs")
 var comBucket []byte = []byte("commits")
 var Size int64 = 0
 
-func Next(key []byte) (Entry, bool) {
-	ok := false
-	var entry Entry
-
-	db.View(func(tx *bolt.Tx) error {
-		// Assume bucket exists and has keys
-		b := tx.Bucket(logBucket)
-		c := b.Cursor()
-
-		for k, v := c.Seek(key); k != nil; k, v = c.Next() {
-			entry = Entry{k, v, 0}
-			ok = true
-
-			t := tx.Bucket(comBucket).Get(k)
-
-			if len(t) >= 1 {
-				entry.Status = int(t[0])
-			}
-
-			return nil
-		}
-
-		return nil
-	})
-
-	return entry, ok
-}
-
 func AppendEntry(key []byte, value []byte) error {
 	return AppendEntryWithStatus(key, value, 0)
 }
@@ -105,6 +77,8 @@ func OpenDb(name string) {
 		})
 		return nil
 	})
+
+	startKeyGenerator()
 }
 
 func fromInt64(val int64) []byte {

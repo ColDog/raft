@@ -22,6 +22,10 @@ func (entry Entry) Abort() {
 	AbortEntry(entry.Key)
 }
 
+func (entry Entry) KeyAsInt() int64 {
+	return keyToInt64(entry.Key)
+}
+
 func NewEntry(entry []byte) Entry {
 	return Entry{NextKey(), entry, 0}
 }
