@@ -1,6 +1,8 @@
 package store
 
-import "github.com/boltdb/bolt"
+import (
+	"github.com/boltdb/bolt"
+)
 
 type Iterator struct {
 	key 	[]byte
@@ -9,6 +11,10 @@ type Iterator struct {
 func (it *Iterator) Next() (Entry, bool) {
 	ok := false
 	var entry Entry
+
+	if it.key == nil {
+		return Entry{}, false
+	}
 
 	key := increment(it.key)
 
@@ -27,13 +33,14 @@ func (it *Iterator) Next() (Entry, bool) {
 				entry.Status = int(t[0])
 			}
 
-			it.key = k
+			copy(key, k)
 			return nil
 		}
 
 		return nil
 	})
 
+	it.key = key
 	return entry, ok
 }
 
@@ -43,6 +50,8 @@ func (it *Iterator) NextCount(count int) []Entry {
 		entry, ok := it.Next()
 		if ok {
 			entries = append(entries, entry)
+		} else {
+			break
 		}
 	}
 

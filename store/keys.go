@@ -1,19 +1,26 @@
 package store
 
-var lastKey []byte = []byte{0}
+import (
+	"sync"
+)
+
 var nextChan chan future = make(chan future)
+var keyGenLock sync.Mutex = sync.Mutex{}
 
 type future struct {
+	new 	bool
 	res 	chan []byte
 }
 
 func LastKey() []byte {
-	return lastKey
+	c := make(chan []byte)
+	nextChan <- future{false, c}
+	return <- c
 }
 
 func NextKey() []byte {
 	c := make(chan []byte)
-	nextChan <- future{c}
+	nextChan <- future{true, c}
 	return <- c
 }
 
@@ -28,9 +35,15 @@ func increment(key []byte) []byte {
 
 func startKeyGenerator()  {
 	go func() {
+		keyGenLock.Lock()
+		defer keyGenLock.Unlock()
+
+		lastKey := []byte{0}
 		for {
 			f := <- nextChan
-			lastKey = increment(lastKey)
+			if f.new {
+				lastKey = increment(lastKey)
+			}
 			f.res <- lastKey
 		}
 	}()

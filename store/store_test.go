@@ -45,11 +45,21 @@ func TestAdding(t *testing.T) {
 	fmt.Printf("ee: %v, ok: %v\n", ee, ok)
 }
 
+func TestIterator(t *testing.T) {
+	println("\n\nentries")
+	it := NewIterator([]byte{0})
+	es := it.NextCount(100)
+
+	printFrom(logBucket)
+
+	fmt.Printf("entries: %v size: %v\n", len(es), Size)
+}
+
 func TestKeyGen(t *testing.T) {
-	go fmt.Printf("key: %v %v\n", NextKey(), LastKey())
-	go fmt.Printf("key: %v %v\n", NextKey(), LastKey())
-	fmt.Printf("key: %v %v\n", NextKey(), LastKey())
-	fmt.Printf("key: %v %v\n", NextKey(), LastKey())
+	for i := 0; i < 500; i++ {
+		NextKey()
+		//fmt.Printf("%v\n", NextKey())
+	}
 }
 
 func printFrom(bucket []byte) {
@@ -58,7 +68,7 @@ func printFrom(bucket []byte) {
 		b := tx.Bucket(bucket)
 
 		b.ForEach(func(k, v []byte) error {
-			fmt.Printf("key=%d, value=%v\n", toInt64(k), v)
+			fmt.Printf("key=%d, value=%v\n", k, v)
 			Size += 1
 			return nil
 		})

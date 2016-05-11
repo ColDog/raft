@@ -7,7 +7,7 @@ import (
 	"github.com/hashicorp/yamux"
 )
 
-var debug bool = false
+var debug bool = true
 
 type Client struct {
 	Url 	string

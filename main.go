@@ -48,22 +48,15 @@ func HandleView(w http.ResponseWriter, r *http.Request, _ httprouter.Params)  {
 	w.Header().Set("Content-Type", "application/json")
 	r.ParseForm()
 
-	start := toInt64(r.Form.Get("start"))
 	results := make([]map[string] interface{}, 0)
+	it := store.NewIterator([]byte{0})
+	entries := it.NextCount(100)
 
-	for {
-		key, status, val := store.Next(start)
-		if key == 0 {
-			break
-		}
-
-		start = key
+	for _, entry := range entries {
 		current := make(map[string] interface{})
-
-		current["key"] = key
-		current["value"] = string(val)
-		current["value_encoded"] = val
-		current["status"] = status
+		current["key"] = entry.KeyAsInt()
+		current["value"] = string(entry.Entry)
+		current["status"] = entry.Status
 		results = append(results, current)
 	}
 

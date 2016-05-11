@@ -27,7 +27,7 @@ func (raft *Raft) BaseMessage(action string) msg.Message {
 	m.Params["term"] = raft.Term
 	m.Params["from"] = raft.Cluster.Self
 	m.Params["leader"] = raft.Leader
-	m.Params["last_id"] = store.LastKey
+	m.Params["last_id"] = store.LastKey()
 	m.Params["size"] = store.Size
 	return m
 }
