@@ -32,7 +32,7 @@ func (store *BoltStore) Abort(key []byte) error {
 	return store.setStatus(key, 2)
 }
 
-func (store *BoltStore) Size()  {
+func (store *BoltStore) Size() int64 {
 	return store.size
 }
 
@@ -82,7 +82,7 @@ func (store *BoltStore) setStatus(key []byte, status int) error {
 
 func (store *BoltStore) Next(last []byte) (Entry, bool) {
 	ok := false
-	var entry Entry
+	var entry Entry = Entry{}
 
 	key := increment(last)
 
@@ -92,6 +92,10 @@ func (store *BoltStore) Next(last []byte) (Entry, bool) {
 		c := b.Cursor()
 
 		for k, v := c.Seek(key); k != nil; k, v = c.Next() {
+			if k == nil {
+				return nil
+			}
+
 			entry = Entry{k, v, 0}
 			ok = true
 
@@ -101,6 +105,7 @@ func (store *BoltStore) Next(last []byte) (Entry, bool) {
 				entry.Status = int(t[0])
 			}
 
+			key = make([]byte, len(k))
 			copy(key, k)
 			return nil
 		}
@@ -142,7 +147,7 @@ func NewBoltStore(name string) *BoltStore {
 		b := tx.Bucket(store.logB)
 
 		b.ForEach(func(k, v []byte) error {
-			store.Size += 1
+			store.size += 1
 			return nil
 		})
 		return nil

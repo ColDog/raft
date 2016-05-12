@@ -18,8 +18,8 @@ type MemStore struct {
 	cbs 	[]Callback
 }
 
-func (store *MemStore) Append(key, value []byte)  {
-	store.AppendWithStatus(key, value, 0)
+func (store *MemStore) Append(key, value []byte) error {
+	return store.AppendWithStatus(key, value, 0)
 }
 
 func (store *MemStore) Commit(key []byte) error {
@@ -62,7 +62,7 @@ func (store *MemStore) Next(last []byte) (Entry, bool) {
 
 	for _, entry := range store.data {
 		if keyToInt64(entry.Key) < k {
-			return entry, true
+			return *entry, true
 		}
 	}
 

@@ -4,4 +4,4 @@ go install github.com/coldog/raft && ${GOPATH}/bin/raft \
     -id node${1} \
     -address localhost:300${1} \
     -server 0.0.0.0:300${1} \
-    -http :800${1}
+    -http 0.0.0.0:800${1}

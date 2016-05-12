@@ -20,11 +20,19 @@ func NextKey() []byte {
 }
 
 func increment(key []byte) []byte {
-	if key[len(key) - 1] == byte(128) {
-		return append(key, byte(0))
+	newKey := make([]byte, len(key))
+	copy(newKey, key)
+	l := len(newKey) - 1
+
+	if newKey == nil || len(newKey) == 0 {
+		return []byte{0}
+	}
+
+	if newKey[l] == byte(128) {
+		return append(newKey, byte(0))
 	} else {
-		key[len(key) - 1] = byte(int(key[len(key) - 1]) + 1)
-		return key
+		newKey[l] = byte(int(newKey[l]) + 1)
+		return newKey
 	}
 }
 

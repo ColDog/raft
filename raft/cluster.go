@@ -148,14 +148,16 @@ func (cluster *Cluster) Broadcast(m msg.Message) error {
 
 // broadcasts a message to the cluster, will not error
 func (cluster *Cluster) Publish(m msg.Message) {
-	cluster.lock.RLock()
-	defer cluster.lock.RUnlock()
+	go func() {
+		cluster.lock.RLock()
+		defer cluster.lock.RUnlock()
 
-	for _, node := range cluster.Nodes {
-		if node.Id != cluster.Self {
-			node.client.Send(m)
+		for _, node := range cluster.Nodes {
+			if node.Id != cluster.Self {
+				node.client.Send(m)
+			}
 		}
-	}
+	}()
 }
 
 // sends a message to a specific node, errors if any error

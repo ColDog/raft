@@ -9,9 +9,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"bytes"
-	"encoding/binary"
-	"github.com/coldog/raft/store"
 )
 
 var raftCluster *raft.Raft
@@ -49,7 +46,7 @@ func HandleView(w http.ResponseWriter, r *http.Request, _ httprouter.Params)  {
 	r.ParseForm()
 
 	results := make([]map[string] interface{}, 0)
-	it := store.NewIterator([]byte{0})
+	it := raftCluster.NewIterator([]byte{0})
 	entries := it.NextCount(100)
 
 	for _, entry := range entries {
@@ -62,9 +59,10 @@ func HandleView(w http.ResponseWriter, r *http.Request, _ httprouter.Params)  {
 
 	j, e := json.MarshalIndent(results, "", "  ")
 	if e != nil {
-		panic(e)
+		log.Printf("error parsing json %v", e)
+	} else {
+		w.Write(j)
 	}
-	w.Write(j)
 }
 
 func handleAddNode(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
@@ -89,15 +87,17 @@ func main() {
 	address := flag.String("address", "localhost:3000", "This node's address")
 	server := flag.String("server", "0.0.0.0:3000", "This node's server to bind")
 	httpServer := flag.String("http", "0.0.0.0:8080", "This node's http server to bind on")
+	storeType := flag.String("store", "bolt", "This node's store type")
 	flag.Parse()
 
 	fmt.Printf("id:      %v\n", *id)
 	fmt.Printf("address: %v\n", *address)
 	fmt.Printf("server:  %v\n", *server)
 	fmt.Printf("http:    %v\n", *httpServer)
+	fmt.Printf("store:   %v\n", *storeType)
 	print("\n\n")
 
-	raftCluster = raft.NewRaft(*id, *address, *server)
+	raftCluster = raft.NewRaft(*id, *address, *server, *storeType)
 
 	router := httprouter.New()
 	router.POST("/cluster", handleAddNode)

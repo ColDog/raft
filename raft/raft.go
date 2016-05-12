@@ -82,6 +82,10 @@ type Raft struct {
 	vteChan chan *RequestHandler
 }
 
+func (raft *Raft) NewIterator(start []byte) *store.Iterator {
+	return raft.store.NewIterator(start)
+}
+
 func (raft *Raft) ToLeader() {
 	raft.Leader = raft.Cluster.Self
 	raft.Term += 1
@@ -155,7 +159,7 @@ func (raft *Raft) RunAsCandidate() {
 		case <- time.After(CANDIDATE_TIMEOUT):
 			if !hasVoted {
 				log.Println("requesting vote")
-				raft.Cluster.Broadcast(raft.RequestVoteMessage())
+				raft.Cluster.Publish(raft.RequestVoteMessage())
 			}
 		}
 	}
