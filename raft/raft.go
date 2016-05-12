@@ -306,9 +306,12 @@ func (raft *Raft) handleRaftAppend(req *RequestHandler) {
 
 	if req.Msg.Name() == "raft.append" {
 		entries := req.Msg.Params["entries"].([][]byte)
+		statuses := req.Msg.Params["statuses"].([]int)
+
 		for idx, id := range req.Msg.Params["ids"].([][]byte) {
 			entry := entries[idx]
-			store.AppendEntry(id, entry)
+			status := statuses[idx]
+			store.AppendEntryWithStatus(id, entry, status)
 		}
 	}
 

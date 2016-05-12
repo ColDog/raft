@@ -50,13 +50,16 @@ func (raft *Raft) AppendEntriesMessage(entries []store.Entry) msg.Message {
 	m := raft.BaseMessage("raft.append")
 	es := make([][]byte, 0)
 	ids := make([][]byte, 0)
+	sts := make([]int, 0)
 	for _, entry := range entries {
 		ids = append(ids, entry.Key)
 		es = append(es, entry.Entry)
+		sts = append(sts, entry.Status)
 	}
 
 	m.Params["ids"] = ids
 	m.Params["entries"] = es
+	m.Params["statuses"] = sts
 	return m
 }
 
