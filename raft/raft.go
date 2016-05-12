@@ -8,6 +8,7 @@ import (
 	"log"
 	"sync"
 	"errors"
+	"fmt"
 )
 
 // LEADER = 2
@@ -20,7 +21,7 @@ const (
 	CANDIDATE_TIMEOUT time.Duration = 5000 * time.Millisecond
 )
 
-func NewRaft(id string, address string, server string, storeType string) *Raft {
+func NewRaft(id string, address string, server string, storeType string, clusterId string) *Raft {
 	r := &Raft{
 		State: 0,
 		Term: 0,
@@ -33,6 +34,7 @@ func NewRaft(id string, address string, server string, storeType string) *Raft {
 		vteChan: make(chan *RequestHandler),
 
 		Cluster: &Cluster{
+			Id: clusterId,
 			Nodes: make(map[string] *Node),
 			Self: id,
 			lock: sync.RWMutex{},
@@ -41,9 +43,9 @@ func NewRaft(id string, address string, server string, storeType string) *Raft {
 	}
 
 	if storeType == "mem" {
-		r.store = store.NewMemStore(id)
+		r.store = store.NewMemStore(clusterId)
 	} else {
-		r.store = store.NewBoltStore(id)
+		r.store = store.NewBoltStore(fmt.Sprintf("%v-%v.db", id, clusterId))
 	}
 
 	r.Cluster.Nodes[id] = &Node{
@@ -59,6 +61,10 @@ func NewRaft(id string, address string, server string, storeType string) *Raft {
 	r.Cluster.RegisterClusterMessages()
 	r.RegisterHandlers()
 	return r
+}
+
+func Initialize()  {
+	store.StartKeyGenerator()
 }
 
 type Raft struct {
@@ -118,6 +124,7 @@ func (raft *Raft) RunAsCandidate() {
 	votes := make(map[string] bool)
 
 	for {
+		log.Println("selecting as candidate")
 		hasVoted := false
 		select {
 		case <- raft.quit:
@@ -158,8 +165,8 @@ func (raft *Raft) RunAsCandidate() {
 		// if we don't receive any votes, send out a request vote message
 		case <- time.After(CANDIDATE_TIMEOUT):
 			if !hasVoted {
-				log.Println("requesting vote")
 				raft.Cluster.Publish(raft.RequestVoteMessage())
+				log.Println("requested vote")
 			}
 		}
 	}
@@ -260,29 +267,20 @@ func (raft *Raft) handlePushAppend(entries []store.Entry) {
 
 	err := raft.Cluster.BroadcastQuorum(raft.AppendEntriesMessage(entries))
 	if err == nil {
-		// commit the entries
-		for _, entry := range entries {
-			raft.store.Commit(entry.Key)
-		}
-
 		// send the commit message
 		if len(entries) > 0 {
-			raft.Cluster.Broadcast(raft.CommitMessage(entries))
+			err = raft.CommitAll(entries)
+			if err != nil {
+				raft.AbortAll(entries)
+			}
 		}
 	} else {
 		if err.Error() == "GREATER_TERM_EXCEPTION" {
 			raft.ToCandidate()
 			return
 		}
-
-		// abort the entries
-		for _, entry := range entries {
-			raft.store.Abort(entry.Key)
-		}
-
-		// send the abort message
 		if len(entries) > 0 {
-			raft.Cluster.Broadcast(raft.AbortMessage(entries))
+			raft.AbortAll(entries)
 		}
 	}
 
@@ -293,6 +291,20 @@ func (raft *Raft) handlePushAppend(entries []store.Entry) {
 		default:
 		}
 	}
+}
+
+func (raft *Raft) AbortAll(entries []store.Entry) error {
+	for _, entry := range entries {
+		raft.store.Abort(entry.Key)
+	}
+	return raft.Cluster.Publish(raft.AbortMessage(entries))
+}
+
+func (raft *Raft) CommitAll(entries []store.Entry) error {
+	for _, entry := range entries {
+		raft.store.Commit(entry.Key)
+	}
+	return raft.Cluster.Broadcast(raft.CommitMessage(entries))
 }
 
 

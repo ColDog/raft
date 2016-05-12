@@ -7,6 +7,7 @@ import (
 	"errors"
 	"sync"
 	"time"
+	"fmt"
 )
 
 type Node struct {
@@ -26,10 +27,15 @@ func (node *Node) Status() string {
 }
 
 type Cluster struct {
+	Id 	string
 	Nodes 	map[string] *Node
 	Self 	string
 	lock 	sync.RWMutex
 	events 	chan string
+}
+
+func (cluster *Cluster) name(key string) string {
+	return fmt.Sprintf("raft.%s.%s", cluster.Id, key)
 }
 
 func (cluster *Cluster) Has(id string) bool  {
@@ -66,6 +72,8 @@ func (cluster *Cluster) Add(id, target string) error {
 		client: c,
 	}
 	cluster.events <- id
+
+	log.Printf("added node: %v", target)
 	return nil
 }
 
@@ -184,7 +192,7 @@ func (cluster *Cluster) Publisher() {
 
 // message about the cluster state and which nodes are connected
 func (cluster *Cluster) ClusterMessage() msg.Message {
-	m := msg.NewMessage("raft.cluster")
+	m := msg.NewMessage(cluster.name("cluster"))
 
 	for _, node := range cluster.Nodes {
 		m.Params[node.Id] = []string{node.Url, node.Status()}
@@ -195,7 +203,7 @@ func (cluster *Cluster) ClusterMessage() msg.Message {
 
 // handles cluster specific traffic. this keeps up to date a view of the cluster from all nodes.
 func (cluster *Cluster) RegisterClusterMessages()  {
-	msg.Handle("raft.cluster", func(m msg.Message) msg.Message {
+	msg.Handle(cluster.name("cluster"), func(m msg.Message) msg.Message {
 		for id, val := range m.Params {
 			props := val.([]string)
 

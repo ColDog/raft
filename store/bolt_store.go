@@ -153,8 +153,6 @@ func NewBoltStore(name string) *BoltStore {
 		return nil
 	})
 
-	startKeyGenerator()
-
 	return store
 }
 

@@ -36,7 +36,7 @@ func increment(key []byte) []byte {
 	}
 }
 
-func startKeyGenerator()  {
+func StartKeyGenerator()  {
 	go func() {
 		lastKey := []byte{0}
 		for {

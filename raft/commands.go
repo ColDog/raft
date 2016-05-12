@@ -3,12 +3,17 @@ package raft
 import (
 	"github.com/coldog/raft/msg"
 	"github.com/coldog/raft/store"
+	"fmt"
 )
 
 
 type AppendResponse struct {
 	Id 	int64
 	Err 	error
+}
+
+func (raft *Raft) name(key string) string {
+	return fmt.Sprintf("raft.%s.%s", raft.Cluster.Id, key)
 }
 
 func (raft *Raft) AckMessage() msg.Message {
@@ -33,21 +38,21 @@ func (raft *Raft) BaseMessage(action string) msg.Message {
 }
 
 func (raft *Raft) VoteMessage(id string) msg.Message {
-	m := raft.BaseMessage("raft.vote")
+	m := raft.BaseMessage(raft.name("vote"))
 	m.Params["vote"] = id
 	return m
 }
 
 
 func (raft *Raft) RequestVoteMessage() msg.Message {
-	m := raft.BaseMessage("raft.vote")
+	m := raft.BaseMessage(raft.name("vote"))
 	m.Params["vote"] = raft.Cluster.Self
 	return m
 }
 
 
 func (raft *Raft) AppendEntriesMessage(entries []store.Entry) msg.Message {
-	m := raft.BaseMessage("raft.append")
+	m := raft.BaseMessage(raft.name("append"))
 	es := make([][]byte, 0)
 	ids := make([][]byte, 0)
 	sts := make([]int, 0)
@@ -64,7 +69,7 @@ func (raft *Raft) AppendEntriesMessage(entries []store.Entry) msg.Message {
 }
 
 func (raft *Raft) CommitMessage(entries []store.Entry) msg.Message {
-	m := raft.BaseMessage("raft.commit")
+	m := raft.BaseMessage(raft.name("commit"))
 
 	ids := make([][]byte, 0)
 	for _, entry := range entries {
@@ -76,7 +81,7 @@ func (raft *Raft) CommitMessage(entries []store.Entry) msg.Message {
 }
 
 func (raft *Raft) AbortMessage(entries []store.Entry) msg.Message {
-	m := raft.BaseMessage("raft.abort")
+	m := raft.BaseMessage(raft.name("abort"))
 
 	ids := make([][]byte, 0)
 	for _, entry := range entries {
@@ -88,5 +93,5 @@ func (raft *Raft) AbortMessage(entries []store.Entry) msg.Message {
 }
 
 func (raft *Raft) PingMessage() msg.Message {
-	return raft.BaseMessage("raft.ping")
+	return raft.BaseMessage(raft.name("ping"))
 }

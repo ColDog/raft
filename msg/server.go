@@ -13,6 +13,7 @@ type Handler func(m Message) Message
 var handlers map[string] Handler = make(map[string] Handler)
 
 func Handle(action string, handler Handler)  {
+	log.Printf("[msg] adding handler %v", action)
 	handlers[action] = handler
 }
 

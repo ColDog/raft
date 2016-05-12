@@ -40,15 +40,15 @@ func (raft *Raft) handle(m msg.Message) msg.Message {
 }
 
 func (raft *Raft) RegisterHandlers() {
-	msg.Handle("raft.abort", raft.handle)
-	msg.Handle("raft.commit", raft.handle)
-	msg.Handle("raft.append", raft.handle)
+	msg.Handle(raft.name("abort"), raft.handle)
+	msg.Handle(raft.name("commit"), raft.handle)
+	msg.Handle(raft.name("append"), raft.handle)
 
-	msg.Handle("raft.ping", func(m msg.Message) msg.Message {
-		return raft.BaseMessage("raft.ping")
+	msg.Handle(raft.name("ping"), func(m msg.Message) msg.Message {
+		return raft.BaseMessage(raft.name("ping"))
 	})
 
-	msg.Handle("raft.vote", func(m msg.Message) msg.Message {
+	msg.Handle(raft.name("vote"), func(m msg.Message) msg.Message {
 		c := make(chan msg.Message)
 		raft.vteChan <- &RequestHandler{m, c}
 
