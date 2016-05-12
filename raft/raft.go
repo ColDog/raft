@@ -20,7 +20,7 @@ const (
 	CANDIDATE_TIMEOUT time.Duration = 5000 * time.Millisecond
 )
 
-func NewRaft(id string, address string, server string) *Raft {
+func NewRaft(id string, address string, server string, storeType string) *Raft {
 	r := &Raft{
 		State: 0,
 		Term: 0,
@@ -40,6 +40,12 @@ func NewRaft(id string, address string, server string) *Raft {
 		},
 	}
 
+	if storeType == "mem" {
+		r.store = store.NewMemStore(id)
+	} else {
+		r.store = store.NewBoltStore(id)
+	}
+
 	r.Cluster.Nodes[id] = &Node{
 		Id: id,
 		Url: address,
@@ -47,7 +53,6 @@ func NewRaft(id string, address string, server string) *Raft {
 		client: &msg.Client{},
 	}
 
-	store.OpenDb(id)
 	go msg.Serve(server)
 	go r.Run()
 	go r.Cluster.Publisher()
@@ -63,6 +68,8 @@ type Raft struct {
 
 	Term 	int64
 	Leader	string
+
+	store 	store.Store
 
 	quit 	chan bool
 
@@ -241,16 +248,17 @@ func (raft *Raft) AddEntry(entry []byte) error {
 func (raft *Raft) handlePushAppend(entries []store.Entry) {
 	log.Printf("pushing append %v", entries)
 
+
 	// append locally
 	for _, entry := range entries {
-		entry.Append()
+		raft.store.AppendWithStatus(entry.Key, entry.Entry, entry.Status)
 	}
 
 	err := raft.Cluster.BroadcastQuorum(raft.AppendEntriesMessage(entries))
 	if err == nil {
 		// commit the entries
 		for _, entry := range entries {
-			entry.Commit()
+			raft.store.Commit(entry.Key)
 		}
 
 		// send the commit message
@@ -265,7 +273,7 @@ func (raft *Raft) handlePushAppend(entries []store.Entry) {
 
 		// abort the entries
 		for _, entry := range entries {
-			entry.Abort()
+			raft.store.Abort(entry.Key)
 		}
 
 		// send the abort message
@@ -311,21 +319,21 @@ func (raft *Raft) handleRaftAppend(req *RequestHandler) {
 		for idx, id := range req.Msg.Params["ids"].([][]byte) {
 			entry := entries[idx]
 			status := statuses[idx]
-			store.AppendEntryWithStatus(id, entry, status)
+			raft.store.AppendWithStatus(id, entry, status)
 		}
 	}
 
 	if req.Msg.Name() == "raft.commit" {
 		log.Println("inside commit")
 		for _, id := range req.Msg.Params["ids"].([][]byte) {
-			store.CommitEntry(id)
+			raft.store.Commit(id)
 		}
 	}
 
 	if req.Msg.Name() == "raft.abort" {
 		log.Printf("aborting %v", req.Msg.Params["ids"])
 		for _, id := range req.Msg.Params["ids"].([][]byte) {
-			store.AbortEntry(id)
+			raft.store.Abort(id)
 		}
 	}
 
@@ -337,7 +345,7 @@ func (raft *Raft) BringUpNode(id string) {
 	nodeInfo := raft.Cluster.Send(id, raft.PingMessage()).Params
 	last := nodeInfo["last_id"].([]byte)
 
-	iterator := store.NewIterator(last)
+	iterator := raft.store.NewIterator(last)
 
 	for {
 		entries := iterator.NextCount(5)

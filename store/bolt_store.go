@@ -11,7 +11,7 @@ import (
 type BoltStore struct {
 	db 	*bolt.DB
 	cbs 	[]Callback
-	Size 	int64
+	size 	int64
 	comB	[]byte
 	logB	[]byte
 }
@@ -32,8 +32,12 @@ func (store *BoltStore) Abort(key []byte) error {
 	return store.setStatus(key, 2)
 }
 
+func (store *BoltStore) Size()  {
+	return store.size
+}
+
 func (store *BoltStore) AppendWithStatus(key []byte, value []byte, status int) error {
-	store.Size += 1
+	store.size += 1
 	err := store.db.Update(func(tx *bolt.Tx) error {
 		err := tx.Bucket(store.logB).Put(key, value)
 		tx.Bucket(store.comB).Put(

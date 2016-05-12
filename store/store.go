@@ -9,6 +9,7 @@ type Store interface  {
 	Next(last []byte) (Entry, bool)
 	NewIterator(start []byte) *Iterator
 	OnCommit(cb Callback)
+	Size() int64
 }
 
 type Callback func(entry Entry) error

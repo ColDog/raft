@@ -2,6 +2,15 @@ package store
 
 import "sync"
 
+func NewMemStore(name string) *MemStore {
+	return &MemStore{
+		data: make([]*Entry, 0),
+		index: make(map[int64] int),
+		lock: sync.RWMutex{},
+		cbs: make([]Callback, 0),
+	}
+}
+
 type MemStore struct {
 	data 	[]*Entry
 	index 	map[int64] int
@@ -25,11 +34,15 @@ func (store *MemStore) Abort(key []byte) error {
 	return store.setStatus(key, 2)
 }
 
+func (store *MemStore) Size() int64 {
+	return int64(len(store.data))
+}
+
 func (store *MemStore) AppendWithStatus(key, value []byte, status int) error {
 	store.lock.Lock()
 	defer store.lock.Unlock()
 
-	e := Entry{key, value, status}
+	e := &Entry{key, value, status}
 	store.data = append(store.data, e)
 	store.index[e.KeyAsInt()] = len(store.data) - 1
 
