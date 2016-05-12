@@ -57,6 +57,10 @@ func ParseMessage(msg []byte) Message {
 		key := string(msg[i + 8:i + 8 + kl])
 		val := msg[i + 8 + kl:i + 8 + kl + vl]
 
+		if len(val) == 0 {
+			break
+		}
+
 		switch val[0] {
 		case byte(1):
 			params[key] = ti(val[1:])
@@ -106,6 +110,13 @@ func ParseMessage(msg []byte) Message {
 			for si := 1; si < len(val); {
 				ary = append(ary, toInt64(val[si:si + 8]))
 				si = si + 8
+			}
+			params[key] = ary
+		case byte(10):
+			ary := make([]int, 0)
+			for si := 1; si < len(val); {
+				ary = append(ary, ti(val[si:si + 4]))
+				si = si + 4
 			}
 			params[key] = ary
 		}
@@ -201,6 +212,13 @@ func (msg Message) serialize() []byte {
 			bAry.Write([]byte{9})
 			for _, item := range asserted {
 				bAry.Write(fromInt64(item))
+			}
+			bval = bAry.Bytes()
+		case []int:
+			bAry := new(bytes.Buffer)
+			bAry.Write([]byte{10})
+			for _, item := range asserted {
+				bAry.Write(fi(item))
 			}
 			bval = bAry.Bytes()
 		}
