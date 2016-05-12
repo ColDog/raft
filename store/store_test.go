@@ -3,33 +3,30 @@ package store
 import (
 	"testing"
 	"os"
-	"github.com/boltdb/bolt"
 	"fmt"
 )
 
 func TestAdding(t *testing.T) {
+	s := NewBoltStore("test")
 
 	id := []byte{100}
 
-	AppendEntry(id, []byte("things"))
+	s.Append(id, []byte("things"))
 
-	err := CommitEntry(id)
+	err := s.Commit(id)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	printFrom(logBucket)
-	printFrom(comBucket)
 
 	id = []byte{200}
-	AppendEntry(id, []byte("things"))
+	s.Append(id, []byte("things"))
 
-	err = AbortEntry(id)
+	err = s.Abort(id)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	it := NewIterator([]byte{199})
+	it := s.NewIterator([]byte{199})
 
 	e, _ := it.Next()
 	fmt.Printf("%v\n", e)
@@ -37,22 +34,9 @@ func TestAdding(t *testing.T) {
 		t.Fatal(e)
 	}
 
-	printFrom(logBucket)
-	printFrom(comBucket)
-
-	it = NewIterator([]byte{10})
+	it = s.NewIterator([]byte{10})
 	ee, ok := it.Next()
 	fmt.Printf("ee: %v, ok: %v\n", ee, ok)
-}
-
-func TestIterator(t *testing.T) {
-	println("\n\nentries")
-	it := NewIterator([]byte{0})
-	es := it.NextCount(100)
-
-	printFrom(logBucket)
-
-	fmt.Printf("entries: %v size: %v\n", len(es), Size)
 }
 
 func TestKeyGen(t *testing.T) {
@@ -62,21 +46,7 @@ func TestKeyGen(t *testing.T) {
 	}
 }
 
-func printFrom(bucket []byte) {
-	fmt.Printf("\nprinting from %s\n", bucket)
-	db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket(bucket)
-
-		b.ForEach(func(k, v []byte) error {
-			fmt.Printf("key=%d, value=%v\n", k, v)
-			Size += 1
-			return nil
-		})
-		return nil
-	})
-}
 
 func init()  {
-	os.Remove("test.db")
-	OpenDb("test.db")
+	os.Remove("test")
 }

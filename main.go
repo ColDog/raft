@@ -20,7 +20,7 @@ func ok(w http.ResponseWriter, msg string)  {
 	w.Header().Set("Content-Type", "application/json")
 	j, _ := json.MarshalIndent(map[string] interface{} {
 		"error": nil,
-		"messaage": msg,
+		"message": msg,
 	}, "", "  ")
 	w.Write(j)
 }
@@ -106,11 +106,4 @@ func main() {
 	router.GET("/logs", HandleView)
 
 	log.Fatal(http.ListenAndServe(*httpServer, router))
-}
-
-func toInt64(data string) int64 {
-	var value uint64
-	buf := bytes.NewReader([]byte(data))
-	binary.Read(buf, binary.LittleEndian, &value)
-	return int64(value)
 }
