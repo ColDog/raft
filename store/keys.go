@@ -4,18 +4,25 @@ var nextChan chan future = make(chan future)
 
 type future struct {
 	new 	bool
+	key 	[]byte
 	res 	chan []byte
 }
 
 func LastKey() []byte {
 	c := make(chan []byte)
-	nextChan <- future{false, c}
+	nextChan <- future{false, nil, c}
 	return <- c
 }
 
 func NextKey() []byte {
 	c := make(chan []byte)
-	nextChan <- future{true, c}
+	nextChan <- future{true, nil, c}
+	return <- c
+}
+
+func UpdateLast(key []byte) []byte {
+	c := make(chan []byte)
+	nextChan <- future{false, key, c}
 	return <- c
 }
 
@@ -41,6 +48,9 @@ func StartKeyGenerator()  {
 		lastKey := []byte{0}
 		for {
 			f := <- nextChan
+			if f.key != nil {
+				lastKey = f.key
+			}
 			if f.new {
 				lastKey = increment(lastKey)
 			}

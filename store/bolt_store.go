@@ -38,6 +38,7 @@ func (store *BoltStore) Size() int64 {
 
 func (store *BoltStore) AppendWithStatus(key []byte, value []byte, status int) error {
 	store.size += 1
+	UpdateLast(key)
 	err := store.db.Update(func(tx *bolt.Tx) error {
 		err := tx.Bucket(store.logB).Put(key, value)
 		tx.Bucket(store.comB).Put(

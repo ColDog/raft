@@ -21,7 +21,7 @@ const (
 	CANDIDATE_TIMEOUT time.Duration = 5000 * time.Millisecond
 )
 
-func NewRaft(id string, address string, server string, storeType string, clusterId string) *Raft {
+func NewRaft(id string, address string, server string, storeType string) *Raft {
 	r := &Raft{
 		State: 0,
 		Term: 0,
@@ -34,7 +34,6 @@ func NewRaft(id string, address string, server string, storeType string, cluster
 		vteChan: make(chan *RequestHandler),
 
 		Cluster: &Cluster{
-			Id: clusterId,
 			Nodes: make(map[string] *Node),
 			Self: id,
 			lock: sync.RWMutex{},
@@ -43,9 +42,9 @@ func NewRaft(id string, address string, server string, storeType string, cluster
 	}
 
 	if storeType == "mem" {
-		r.store = store.NewMemStore(clusterId)
+		r.store = store.NewMemStore(id)
 	} else {
-		r.store = store.NewBoltStore(fmt.Sprintf("%v-%v.db", id, clusterId))
+		r.store = store.NewBoltStore(fmt.Sprintf("%v.db", id))
 	}
 
 	r.Cluster.Nodes[id] = &Node{
@@ -124,7 +123,6 @@ func (raft *Raft) RunAsCandidate() {
 	votes := make(map[string] bool)
 
 	for {
-		log.Println("selecting as candidate")
 		hasVoted := false
 		select {
 		case <- raft.quit:
@@ -257,9 +255,6 @@ func (raft *Raft) AddEntry(entry []byte) error {
 }
 
 func (raft *Raft) handlePushAppend(entries []store.Entry) {
-	log.Printf("pushing append %v", entries)
-
-
 	// append locally
 	for _, entry := range entries {
 		raft.store.AppendWithStatus(entry.Key, entry.Entry, entry.Status)
@@ -297,7 +292,8 @@ func (raft *Raft) AbortAll(entries []store.Entry) error {
 	for _, entry := range entries {
 		raft.store.Abort(entry.Key)
 	}
-	return raft.Cluster.Publish(raft.AbortMessage(entries))
+	raft.Cluster.Publish(raft.AbortMessage(entries))
+	return nil
 }
 
 func (raft *Raft) CommitAll(entries []store.Entry) error {
@@ -309,8 +305,6 @@ func (raft *Raft) CommitAll(entries []store.Entry) error {
 
 
 func (raft *Raft) handleRaftAppend(req *RequestHandler) {
-	log.Printf("handling append %v", req.Msg)
-
 	t := req.Msg.Params["term"].(int64)
 	if raft.Term > t {
 		log.Printf("greater term exception %v %v", raft.Term, t)
@@ -379,7 +373,7 @@ func (raft *Raft) BringUpNode(id string) {
 
 func (raft *Raft) Run() {
 	for {
-		log.Printf("running %v", raft.State)
+		log.Printf("STATE=%v", raft.State)
 
 		switch raft.State {
 		case 0:

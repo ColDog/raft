@@ -42,6 +42,7 @@ func (store *MemStore) AppendWithStatus(key, value []byte, status int) error {
 	store.lock.Lock()
 	defer store.lock.Unlock()
 
+	UpdateLast(key)
 	e := &Entry{key, value, status}
 	store.data = append(store.data, e)
 	store.index[e.KeyAsInt()] = len(store.data) - 1

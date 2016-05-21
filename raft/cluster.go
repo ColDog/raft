@@ -27,7 +27,6 @@ func (node *Node) Status() string {
 }
 
 type Cluster struct {
-	Id 	string
 	Nodes 	map[string] *Node
 	Self 	string
 	lock 	sync.RWMutex
@@ -35,7 +34,7 @@ type Cluster struct {
 }
 
 func (cluster *Cluster) name(key string) string {
-	return fmt.Sprintf("raft.%s.%s", cluster.Id, key)
+	return fmt.Sprintf("raft.%s", key)
 }
 
 func (cluster *Cluster) Has(id string) bool  {
@@ -56,11 +55,13 @@ func (cluster *Cluster) Add(id, target string) error {
 		return errors.New("Already Exists")
 	}
 
+	log.Printf("adding new client: %v", target)
 	c, err := msg.NewClient(target)
 	if err != nil {
 		return err
 	}
 
+	log.Printf("added new client: %v", target)
 	cluster.lock.Lock()
 	defer cluster.lock.Unlock()
 
@@ -71,9 +72,13 @@ func (cluster *Cluster) Add(id, target string) error {
 		Info: make(map[string] interface{}),
 		client: c,
 	}
-	cluster.events <- id
 
-	log.Printf("added node: %v", target)
+	select {
+	case cluster.events <- id:
+		log.Printf("added node: %v", target)
+	default:
+		log.Printf("failed to add node, events channel is busy")
+	}
 	return nil
 }
 

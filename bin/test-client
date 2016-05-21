@@ -1,4 +1,15 @@
 #!/bin/bash
 
+if [ $1 = "join" ]; then
+    curl -XPOST "http://localhost:800${2}/cluster?node_id=node${3}&address=localhost:300${3}";
+fi
 
-curl "http://localhost:800${1}/${2}?${3}"
+if [ $1 = "append" ]; then
+    curl -XPOST "http://localhost:800${2}/logs?entry=${3}";
+fi
+
+if [ $1 = "all" ]; then
+    curl "http://localhost:800${2}/logs";
+fi
+
+printf "\n"

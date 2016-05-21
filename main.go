@@ -88,7 +88,6 @@ func main() {
 	server := flag.String("server", "0.0.0.0:3000", "This node's server to bind")
 	httpServer := flag.String("http", "0.0.0.0:8080", "This node's http server to bind on")
 	storeType := flag.String("store", "bolt", "This node's store type")
-	clusterId := flag.String("cluster", "1", "This node's cluster id")
 	flag.Parse()
 
 	fmt.Printf("id:      %v\n", *id)
@@ -96,10 +95,9 @@ func main() {
 	fmt.Printf("server:  %v\n", *server)
 	fmt.Printf("http:    %v\n", *httpServer)
 	fmt.Printf("store:   %v\n", *storeType)
-	fmt.Printf("cluster: %v\n", *clusterId)
 	print("\n\n")
 
-	raftCluster = raft.NewRaft(*id, *address, *server, *storeType, *clusterId)
+	raftCluster = raft.NewRaft(*id, *address, *server, *storeType)
 	raft.Initialize()
 
 	router := httprouter.New()
