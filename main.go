@@ -26,7 +26,7 @@ func fail(w http.ResponseWriter, err error)  {
 	w.Header().Set("Content-Type", "application/json")
 	j, _ := json.MarshalIndent(map[string] interface{} {
 		"error": err.Error(),
-		"messaage": "Request Failed",
+		"message": "Request Failed",
 	}, "", "  ")
 	w.Write(j)
 }
